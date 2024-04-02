@@ -160,4 +160,7 @@ def parse_log(logfile, loader, sample_sha256):
     except Exception as ex:
         logger.exception(f"error {ex}")
     logger.debug("parse_log<<<")
-    return _context.toJSON()
+    if _context:
+        return _context.toJSON()
+    else:
+        return None
