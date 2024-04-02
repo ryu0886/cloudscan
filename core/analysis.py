@@ -7,7 +7,8 @@ logger = logging.getLogger(__name__)
 
 
 class CSample:
-    def __init__(self, pid, image, sha256):
+    def __init__(self, ppid, pid, image, sha256):
+        self.ppid = ppid
         self.pid = pid
         self.image = image
         self.basename = self.image.split("\\")[-1]
@@ -29,9 +30,10 @@ class CSample:
 
 
 class AnalysisContext:
-    def __init__(self, loader_pid, sample_sha256, sample_pid, sample_image, sample_cmd, sha256_in_log):  # noqa: E501
+    def __init__(self, loader_pid, sample_sha256, sample_ppid, sample_pid, sample_image, sample_cmd, sha256_in_log):  # noqa: E501
         self.start = False
         self.loader_pid = loader_pid
+        self.sample_ppid = sample_ppid
         self.sample_sha256 = sample_sha256
         self.sample_pid = sample_pid
         self.sample_image = sample_image
@@ -39,7 +41,7 @@ class AnalysisContext:
         self.sha256_in_log = sha256_in_log
         self.all_records = {}
         if self.sample_pid not in self.all_records:
-            self.all_records[self.sample_pid] = CSample(self.sample_pid, self.sample_image, self.sample_sha256)  # noqa: E501
+            self.all_records[self.sample_pid] = CSample(self.sample_ppid, self.sample_pid, self.sample_image, self.sample_sha256)  # noqa: E501
 
     def __repr__(self):
         return f"AnalysisContext(loader_pid={self.loader_pid}, sample_sha256={self.sample_sha256}, sample_pid={self.sample_pid}, sample_image={self.sample_image}, sample_cmd={self.sample_cmd}, sha256_in_log={self.sha256_in_log}, all_records={self.all_records})"  # noqa: E501
@@ -56,7 +58,7 @@ class AnalysisContext:
         output["all_records"] = {}
         for pid in self.all_records:
             output["all_records"][pid] = self.all_records[pid].__dict__
-        return json.dumps(output)
+        return json.dumps(output, indent=4, separators=(',', ': '))  # noqa: E501
 
     def parse_line(self, cols):
         if(len(cols) > 4):
@@ -69,11 +71,12 @@ class AnalysisContext:
                     _tid = int(cols[2])
                     _type = cols[3]
                     if _type == "process":
+                        _ppid = parse_p(cols[4])
                         _image = parse_p(cols[5])
                         _cmd = parse_p(cols[6])
                         _sha256 = parse_p(cols[9])
                         if _pid not in self.all_records:
-                            self.all_records[_pid] = CSample(_pid, _image, _sha256)  # noqa: E501
+                            self.all_records[_pid] = CSample(_ppid, _pid, _image, _sha256)  # noqa: E501
                         logger.debug(f"{_image},{_cmd},{_sha256}")
                     elif _type == "module":
                         _image = parse_p(cols[4])
@@ -146,12 +149,13 @@ def parse_log(logfile, loader, sample_sha256):
                                 logger.debug(f"loader_pid:{_loader_pid},image:{_loader_image},cmd:{_loader_cmd},sha256:{_loader_sha256_in_log}")  # noqa: E501
                             else:
                                 _sample_pid = int(cols[1])
+                                _sample_ppid = int(cols[4])
                                 _image = parse_p(cols[5])
                                 _cmd = parse_p(cols[6])
                                 _sha256_in_log = parse_p(cols[9])
                                 logger.debug(f"pid:{_sample_pid},image:{_image},cmd:{_cmd},sha256:{_sha256_in_log}")  # noqa: E501
                                 _start = True
-                                _context = AnalysisContext(_loader_pid, sample_sha256, _sample_pid, _image, _cmd, _sha256_in_log)  # noqa: E501
+                                _context = AnalysisContext(_loader_pid, sample_sha256, _sample_ppid, _sample_pid, _image, _cmd, _sha256_in_log)  # noqa: E501
 
     except Exception as ex:
         logger.exception(f"error {ex}")

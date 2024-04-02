@@ -85,7 +85,7 @@ def sample():
             shutil.rmtree(sample_dir)
         except Exception as ex:
             pass
-        return "{}".format(res)
+        return f"<html><body><pre>{res}</pre></body></html>"
 
     return '''
     <!doctype html>
